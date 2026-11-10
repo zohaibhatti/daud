@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Daud</title>
+    
+    <style>
+        /* Pure CSS Styles */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: #032048;
+            color: #ffffff;
+            font-family: system-ui, -apple-system, sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #032048;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #0296DD;
+            border-radius: 4px;
+        }
+
+        /* Hero & Scroll Section */
+        .anim-section {
+            position: relative;
+            height: 300vh;
+            width: 100%;
+        }
+
+        .sticky-container {
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* Intro Text Styling */
+        .intro-text {
+            position: absolute;
+            top: 40px;
+            text-align: center;
+            z-index: 10;
+            padding: 0 20px;
+            transition: opacity 0.3s ease;
+        }
+
+        .intro-text span {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #D6AF3F;
+            font-weight: 600;
+        }
+
+        .intro-text h1 {
+            font-size: clamp(1.8rem, 4vw, 3rem);
+            font-weight: bold;
+            margin-top: 8px;
+            color: #ffffff;
+        }
+
+        .intro-text p {
+            font-size: 14px;
+            color: #d1d5db;
+            margin-top: 6px;
+        }
+
+        .dot-count {
+            font-size: 12px;
+            color: #0296DD;
+            margin-top: 4px;
+        }
+
+        /* Canvas Container */
+        .canvas-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            height: 550px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+            display: block;
+        }
+
+        /* Scroll Indicator */
+        .scroll-indicator {
+            position: absolute;
+            bottom: 30px;
+            text-align: center;
+            z-index: 10;
+            animation: bounce 2s infinite;
+        }
+
+        .scroll-indicator p {
+            font-size: 11px;
+            color: #E9AE40;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+
+        .scroll-indicator svg {
+            width: 20px;
+            height: 20px;
+            margin: 4px auto 0;
+            stroke: #E9AE40;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-8px); }
+            60% { transform: translateY(-4px); }
+        }
+
+        /* Bottom Section */
+        .bottom-section {
+            min-height: 100vh;
+            background-color: #020b1c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .bottom-content max-w {
+            max-width: 600px;
+        }
+
+        .bottom-section h2 {
+            font-size: 2rem;
+            color: #D6AF3F;
+            margin-bottom: 16px;
+        }
+
+        .bottom-section p {
+            color: #d1d5db;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Hero Section / Sticky Container -->
+    <section class="anim-section" id="anim-section">
+        <div class="sticky-container">
+            
+            <div class="intro-text" id="intro-text">
+                <span>Pure CSS & Canvas</span>
+                <h1>Smooth Pixel Assembly</h1>
+                <p>Scroll down slowly to watch the cat image assemble.</p>
+                <div class="dot-count">Active Dots: <span id="dotCount">0</span></div>
+            </div>
+
+            <div class="canvas-wrapper">
+                <canvas id="dotsCanvas"></canvas>
+            </div>
+
+            <div class="scroll-indicator">
+                <p>Scroll Down</p>
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+                </svg>
+            </div>
+        </div>
+    </section>
+
+    <!-- GSAP & ScrollTrigger CDNs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+
+    <script>
+        gsap.registerPlugin(ScrollTrigger);
+
+        const canvas = document.getElementById('dotsCanvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+        const SAMPLE_RATE = 3; // Balanced performance & high clarity
+        let dots = [];
+        let mouse = { x: null, y: null, radius: 90 };
+        let logicalWidth = 600;
+        let logicalHeight = 500;
+
+        function setupCanvasSize() {
+            const rect = canvas.getBoundingClientRect();
+            logicalWidth = rect.width || 600;
+            logicalHeight = rect.height || 500;
+
+            canvas.width = logicalWidth * window.devicePixelRatio;
+            canvas.height = logicalHeight * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        // Track Mouse Movements
+        window.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = e.clientX - rect.left;
+            mouse.y = e.clientY - rect.top;
+        });
+
+        window.addEventListener('mouseleave', () => {
+            mouse.x = null;
+            mouse.y = null;
+        });
+
+        // Optimized Dot Class using fillRect
+        class Dot {
+            constructor(target, index) {
+                this.scatterX = Math.random() * logicalWidth;
+                this.scatterY = Math.random() * logicalHeight;
+                
+                this.targetX = target.x;
+                this.targetY = target.y;
+                this.color = target.color;
+
+                this.x = this.scatterX;
+                this.y = this.scatterY;
+
+                this.size = 2;
+                this.angle = Math.random() * Math.PI * 2;
+                this.speed = 0.02 + Math.random() * 0.03;
+            }
+
+            update(progress) {
+                const destX = this.scatterX + (this.targetX - this.scatterX) * progress;
+                const destY = this.scatterY + (this.targetY - this.scatterY) * progress;
+
+                let wobbleX = 0;
+                let wobbleY = 0;
+                
+                if (progress < 0.1) {
+                    this.angle += this.speed;
+                    wobbleX = Math.sin(this.angle) * 2;
+                    wobbleY = Math.cos(this.angle) * 2;
+                }
+
+                if (mouse.x !== null && mouse.y !== null) {
+                    const dx = this.x - mouse.x;
+                    const dy = this.y - mouse.y;
+                    const dist = dx * dx + dy * dy;
+                    const radiusSquared = mouse.radius * mouse.radius;
+                    
+                    if (dist < radiusSquared) {
+                        const actualDist = Math.sqrt(dist);
+                        const force = (mouse.radius - actualDist) / mouse.radius;
+                        wobbleX += (dx / actualDist) * force * 12;
+                        wobbleY += (dy / actualDist) * force * 12;
+                    }
+                }
+
+                this.x += (destX + wobbleX - this.x) * 0.12;
+                this.y += (destY + wobbleY - this.y) * 0.12;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x, this.y, this.size, this.size);
+            }
+        }
+
+        // Load image and process pixels
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.src = 'daud.jpg';
+
+        img.onload = () => {
+            setupCanvasSize();
+
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            const hRatio = logicalWidth / img.width;
+            const vRatio = logicalHeight / img.height;
+            const ratio = Math.min(hRatio, vRatio) * 0.9;
+
+            const targetW = img.width * ratio;
+            const targetH = img.height * ratio;
+            const offsetX = (logicalWidth - targetW) / 2;
+            const offsetY = (logicalHeight - targetH) / 2;
+
+            tempCanvas.width = logicalWidth;
+            tempCanvas.height = logicalHeight;
+            tempCtx.drawImage(img, offsetX, offsetY, targetW, targetH);
+
+            const imageData = tempCtx.getImageData(0, 0, logicalWidth, logicalHeight);
+            const data = imageData.data;
+
+            let targetCoords = [];
+
+            for (let y = 0; y < logicalHeight; y += SAMPLE_RATE) {
+                for (let x = 0; x < logicalWidth; x += SAMPLE_RATE) {
+                    const index = (y * logicalWidth + x) * 4;
+                    const r = data[index];
+                    const g = data[index + 1];
+                    const b = data[index + 2];
+                    const alpha = data[index + 3];
+                    
+                    if (alpha > 100) {
+                        const isPureBackground = (b > 160 && r < 40 && g < 80);
+                        if (!isPureBackground) {
+                            targetCoords.push({ 
+                                x: x, 
+                                y: y, 
+                                color: `rgb(${r}, ${g}, ${b})` 
+                            });
+                        }
+                    }
+                }
+            }
+
+            dots = targetCoords.map((coord, i) => new Dot(coord, i));
+            document.getElementById('dotCount').innerText = dots.length;
+        };
+
+        // GSAP ScrollTrigger setup
+        const scrollObj = { progress: 0 };
+
+        gsap.to(scrollObj, {
+            progress: 1,
+            ease: "power1.inOut",
+            scrollTrigger: {
+                trigger: "#anim-section",
+                start: "top top",
+                end: "bottom bottom",
+                scrub: 0.5,
+                onUpdate: (self) => {
+                    const textEl = document.getElementById('intro-text');
+                    if (textEl) {
+                        textEl.style.opacity = 1 - self.progress * 2;
+                    }
+                }
+            }
+        });
+
+        // Render Loop
+        function animate() {
+            ctx.clearRect(0, 0, logicalWidth, logicalHeight);
+            
+            if (dots && dots.length > 0) {
+                for (let i = 0; i < dots.length; i++) {
+                    dots[i].update(scrollObj.progress);
+                    dots[i].draw();
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
